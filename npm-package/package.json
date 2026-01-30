@@ -1,0 +1,37 @@
+{
+      "name": "certctl-cli",
+      "version": "1.0.2",
+      "description": "Lightweight SSL Certificate CLI Tool",
+      "bin": {
+            "certctl": "bin/run.js"
+      },
+      "files": [
+            "bin/"
+      ],
+      "keywords": [
+            "ssl",
+            "certificate",
+            "letsencrypt",
+            "acme",
+            "dns",
+            "cli"
+      ],
+      "author": "cuijianzhong",
+      "license": "MIT",
+      "repository": {
+            "type": "git",
+            "url": "git+https://github.com/Heartbeatc/certctl.git"
+      },
+      "os": [
+            "darwin",
+            "linux",
+            "win32"
+      ],
+      "cpu": [
+            "x64",
+            "arm64"
+      ],
+      "engines": {
+            "node": ">=14"
+      }
+}
