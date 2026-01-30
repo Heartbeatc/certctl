@@ -2,6 +2,7 @@ package ui
 
 import (
 	"bufio"
+	"certctl/internal/version"
 	"fmt"
 	"os"
 	"os/exec"
@@ -52,7 +53,7 @@ func Logo() {
 	// 盾牌守护者 + 右侧信息居中
 	fmt.Println()
 	fmt.Printf("  %s\n", cyan("╭━━━━━━━╮"))
-	fmt.Printf("  %s    %s %s\n", cyan("┃ ◉   ◉ ┃"), bold("certctl"), dimmed("v1.0.3"))
+	fmt.Printf("  %s    %s %s\n", cyan("┃ ◉   ◉ ┃"), bold("certctl"), dimmed("v"+version.GetVersion()))
 	fmt.Printf("  %s    %s\n", cyan("┃   ▽   ┃"), dimmed("SSL Certificate Manager"))
 	fmt.Printf("  %s\n", cyan("╰┳━━━━━┳╯"))
 	fmt.Printf("   %s\n", cyan("┃ ◢◣ ┃"))
