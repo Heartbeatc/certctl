@@ -29,9 +29,11 @@ var (
 	flagStaging   bool
 	flagDryRun    bool
 	flagLang      string
-	flagDNS       string
-	flagAliKey    string
-	flagAliSecret string
+	flagDNS          string
+	flagAliKey       string
+	flagAliSecret    string
+	flagTencentId    string
+	flagTencentSecret string
 )
 
 var applyCmd = &cobra.Command{
@@ -50,9 +52,11 @@ func init() {
 	applyCmd.Flags().BoolVar(&flagStaging, "staging", false, "使用 Let's Encrypt 测试环境")
 	applyCmd.Flags().BoolVar(&flagDryRun, "dry-run", false, "干跑模式，模拟流程不实际申请")
 	applyCmd.Flags().StringVar(&flagLang, "lang", "", "语言 (zh/en)")
-	applyCmd.Flags().StringVar(&flagDNS, "dns", "", "DNS 提供商 (aliyun)")
+	applyCmd.Flags().StringVar(&flagDNS, "dns", "", "DNS 提供商 (aliyun/tencentcloud)")
 	applyCmd.Flags().StringVar(&flagAliKey, "ali-key", "", "阿里云 AccessKey ID")
 	applyCmd.Flags().StringVar(&flagAliSecret, "ali-secret", "", "阿里云 AccessKey Secret")
+	applyCmd.Flags().StringVar(&flagTencentId, "tencent-id", "", "腾讯云 SecretId")
+	applyCmd.Flags().StringVar(&flagTencentSecret, "tencent-secret", "", "腾讯云 SecretKey")
 }
 
 func runApply(cmd *cobra.Command, args []string) error {
@@ -194,6 +198,35 @@ func runApply(cmd *cobra.Command, args []string) error {
 		if verbose {
 			ui.ProgressDone(i18n.T("progress.aliyun_ready"))
 		}
+	} else if flagDNS == "tencentcloud" {
+		tencentId := getTencentId()
+		tencentSecret := getTencentSecret()
+
+		if tencentId == "" || tencentSecret == "" {
+			ui.ErrorWithHint(i18n.T("error.tencentcloud_fail"), []string{
+				"请通过参数 --tencent-id 和 --tencent-secret 指定",
+				"或设置环境变量: TENCENTCLOUD_SECRET_ID, TENCENTCLOUD_SECRET_KEY",
+				"获取方式: https://console.cloud.tencent.com/cam/capi",
+			})
+			return nil
+		}
+
+		if verbose {
+			ui.Detail(fmt.Sprintf("%s: 腾讯云自动验证", i18n.T("detail.dns_mode")))
+			ui.Detail(fmt.Sprintf("  SecretId: %s****", tencentId[:4]))
+			ui.Detail(fmt.Sprintf("  DNS API: dnspod.tencentcloudapi.com"))
+		}
+		tencentProvider, err := acme.NewTencentCloudDNSProvider(tencentId, tencentSecret, "")
+		if err != nil {
+			ui.ErrorWithHint(i18n.T("error.tencentcloud_fail"), []string{
+				fmt.Sprintf("Error: %v", err),
+			})
+			return nil
+		}
+		provider = tencentProvider
+		if verbose {
+			ui.ProgressDone(i18n.T("progress.tencentcloud_ready"))
+		}
 	} else {
 		ui.Detail(fmt.Sprintf("%s: %s", i18n.T("detail.dns_mode"), i18n.T("detail.dns_manual")))
 		provider = acme.NewManualDNSProvider(
@@ -291,7 +324,7 @@ func runApply(cmd *cobra.Command, args []string) error {
 	}
 
 	var spin *spinner.Spinner
-	if flagDNS == "aliyun" {
+	if flagDNS == "aliyun" || flagDNS == "tencentcloud" {
 		spin = ui.NewSpinner(i18n.T("progress.applying"))
 		spin.Start()
 	}
@@ -400,4 +433,24 @@ func getConfigDir() string {
 		return ".certctl"
 	}
 	return filepath.Join(home, ".certctl")
+}
+
+func getTencentId() string {
+	if flagTencentId  != "" {
+		return flagTencentId
+	}
+	if id := os.Getenv("TENCENTCLOUD_SECRET_ID"); id != "" {
+		return id
+	}
+	return ui.Prompt("腾讯云 SecretId")
+}
+
+func getTencentSecret() string {
+	if flagTencentSecret != "" {
+		return flagTencentSecret
+	}
+	if secret := os.Getenv("TENCENTCLOUD_SECRET_KEY"); secret != "" {
+		return secret
+	}
+	return ui.PromptSecret("腾讯云 SecretKey")
 }

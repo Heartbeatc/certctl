@@ -7,7 +7,7 @@
 ## ✨ 特性
 
 - 🔐 支持通配符证书（*.example.com）
-- 🤖 阿里云 DNS 自动验证
+- 🤖 阿里云/腾讯云 DNS 自动验证
 - 🌐 中英文双语界面
 - 📋 证书管理（申请、续期、列表）
 - 🎨 美观的交互式菜单
@@ -58,6 +58,24 @@ certctl apply -d example.com \
 export ALICLOUD_ACCESS_KEY=YOUR_KEY
 export ALICLOUD_SECRET_KEY=YOUR_SECRET
 certctl apply -d example.com -e admin@example.com --dns aliyun
+```
+
+**使用腾讯云 DNS 自动验证**：
+
+```bash
+certctl apply -d example.com \\
+  -e admin@example.com \\
+  --dns tencentcloud \\
+  --tencent-id YOUR_SECRET_ID \\
+  --tencent-secret YOUR_SECRET_KEY
+```
+
+或通过环境变量：
+
+```bash
+export TENCENTCLOUD_SECRET_ID=YOUR_ID
+export TENCENTCLOUD_SECRET_KEY=YOUR_KEY
+certctl apply -d example.com -e admin@example.com --dns tencentcloud
 ```
 
 **手动 DNS 验证**：
@@ -122,6 +140,12 @@ certctl
 1. 访问 https://ram.console.aliyun.com/manage/ak
 2. 创建 AccessKey
 3. 赋予 DNS 管理权限
+
+## 🔑 获取腾讯云 SecretKey
+
+1. 访问 https://console.cloud.tencent.com/cam/capi
+2. 新建密钥
+3. 需要 DNSPod 管理权限
 
 ## 🌍 环境选择
 
@@ -212,9 +236,11 @@ Usage:
   -o, --output string       证书输出目录（默认: ~/.certctl/certs）
   
   DNS 自动验证:
-      --dns string          DNS 提供商 (目前支持: aliyun)
+      --dns string          DNS 提供商 (支持: aliyun, tencentcloud)
       --ali-key string      阿里云 AccessKey ID
       --ali-secret string   阿里云 AccessKey Secret
+      --tencent-id string   腾讯云 SecretId
+      --tencent-secret string  腾讯云 SecretKey
   
   其他选项:
       --staging             使用测试环境（不计入速率限制）
@@ -229,6 +255,10 @@ Usage:
   # 阿里云 DNS 自动验证
   certctl apply -d example.com -e admin@example.com \
     --dns aliyun --ali-key YOUR_KEY --ali-secret YOUR_SECRET
+  
+  # 腾讯云 DNS 自动验证
+  certctl apply -d example.com -e admin@example.com \\
+    --dns tencentcloud --tencent-id YOUR_ID --tencent-secret YOUR_KEY
   
   # 使用测试环境
   certctl apply -d example.com -e admin@example.com --staging
@@ -295,6 +325,20 @@ $env:ALICLOUD_SECRET_KEY="YOUR_SECRET"
 certctl apply -d example.com -e admin@example.com --dns aliyun
 ```
 
+支持通过环境变量配置腾讯云 SecretKey：
+
+```bash
+# Linux/macOS
+export TENCENTCLOUD_SECRET_ID=YOUR_ID
+export TENCENTCLOUD_SECRET_KEY=YOUR_KEY
+certctl apply -d example.com -e admin@example.com --dns tencentcloud
+
+# Windows PowerShell
+$env:TENCENTCLOUD_SECRET_ID="YOUR_ID"
+$env:TENCENTCLOUD_SECRET_KEY="YOUR_KEY"
+certctl apply -d example.com -e admin@example.com --dns tencentcloud
+```
+
 ### 1. 证书到期了怎么办？
 
 使用 `certctl renew` 命令续期，或设置 cron 定时任务：
@@ -308,6 +352,7 @@ certctl apply -d example.com -e admin@example.com --dns aliyun
 
 目前支持：
 - 阿里云 DNS（自动验证）
+- 腾讯云 DNS / DNSPod（自动验证）
 - 手动验证（所有 DNS 提供商）
 
 ### 3. Windows 上安装后找不到命令？

@@ -12,6 +12,8 @@ require (
 	github.com/miekg/dns v1.1.58
 	github.com/spf13/cobra v1.8.0
 	github.com/sqweek/dialog v0.0.0-20260123140253-64c163d53aac
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.490
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod v1.0.490
 )
 
 require (
