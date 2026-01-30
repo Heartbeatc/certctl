@@ -1,6 +1,6 @@
 {
       "name": "certctl-cli",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "Lightweight SSL Certificate CLI Tool",
       "bin": {
             "certctl": "bin/run.js"

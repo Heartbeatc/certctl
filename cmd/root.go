@@ -298,6 +298,7 @@ func manageDNSConfig() {
 
 		idx, _, err := ui.Select(i18n.T("ui.select_action"), []string{
 			i18n.T("ui.add_aliyun"),
+			i18n.T("ui.add_tencentcloud"),
 			i18n.T("ui.delete_config"),
 			i18n.T("ui.back"),
 		})
@@ -311,9 +312,12 @@ func manageDNSConfig() {
 			// 添加阿里云配置
 			addAliyunDNSConfig()
 		case 1:
+			// 添加腾讯云配置
+			addTencentCloudDNSConfig()
+		case 2:
 			// 删除配置
 			deletesDNSConfig()
-		case 2:
+		case 3:
 			return
 		}
 	}
@@ -366,6 +370,31 @@ func deletesDNSConfig() {
 	configName := dnsConfigs[idx].Name
 	config.DeleteDNSConfig(configName)
 	ui.Success(fmt.Sprintf(i18n.T("ui.deleted"), configName))
+}
+
+// addTencentCloudDNSConfig 添加腾讯云 DNS 配置
+func addTencentCloudDNSConfig() {
+	// 输入配置名称
+	name, err := ui.Input(i18n.T("ui.config_name"), "")
+	if err != nil || name == "" {
+		ui.Error(i18n.T("ui.name_empty"))
+		return
+	}
+
+	secretId, err := ui.Input("腾讯云 SecretId", "")
+	if err != nil || secretId == "" {
+		ui.Error("SecretId 不能为空")
+		return
+	}
+
+	secretKey, err := ui.InputSecret("腾讯云 SecretKey")
+	if err != nil || secretKey == "" {
+		ui.Error("SecretKey 不能为空")
+		return
+	}
+
+	config.AddDNSConfig(name, "tencentcloud", secretId, secretKey)
+	ui.Success(fmt.Sprintf(i18n.T("ui.config_saved"), name))
 }
 
 // setCertsDirInner 内部设置证书目录（不按键返回）
@@ -516,6 +545,7 @@ func runApplyInteractive() {
 	// 3. 选择 DNS 验证方式
 	dnsIdx, _, err := ui.Select(i18n.T("ui.dns_verify_method"), []string{
 		i18n.T("ui.aliyun_auto"),
+		"腾讯云NS(自动)",
 		i18n.T("ui.manual_dns"),
 	})
 	if err != nil {
@@ -525,10 +555,13 @@ func runApplyInteractive() {
 	var dnsProvider string
 	if dnsIdx == 0 {
 		dnsProvider = "aliyun"
+	} else if dnsIdx == 1 {
+		dnsProvider = "tencentcloud"
 	}
 
 	// 4. 如果是阿里云，检查已保存的配置
 	var aliKey, aliSecret string
+	var tencentId, tencentSecret string
 	if dnsProvider == "aliyun" {
 		// 获取所有阿里云配置
 		aliyunConfigs := config.GetDNSConfigsByProvider("aliyun")
@@ -583,6 +616,62 @@ func runApplyInteractive() {
 				}
 			}
 		}
+	} else if dnsProvider == "tencentcloud" {
+		// 获取所有腾讯云配置
+		tencentConfigs := config.GetDNSConfigsByProvider("tencentcloud")
+
+		if len(tencentConfigs) > 0 {
+			// 有已保存的配置，让用户选择
+			options := []string{}
+			for _, cfg := range tencentConfigs {
+				maskedKey := cfg.AccessKeyID
+				if len(maskedKey) > 8 {
+					maskedKey = maskedKey[:4] + "****" + maskedKey[len(maskedKey)-4:]
+				}
+				options = append(options, fmt.Sprintf("%s (%s)", cfg.Name, maskedKey))
+			}
+			options = append(options, i18n.T("ui.input_new_config"))
+
+			cfgIdx, _, _ := ui.Select("选择腾讯云配置:", options)
+
+			if cfgIdx < len(tencentConfigs) {
+				// 使用已保存的配置
+				selectedConfig := tencentConfigs[cfgIdx]
+				tencentId = selectedConfig.AccessKeyID
+				tencentSecret = selectedConfig.AccessKeySecret
+				ui.Success(fmt.Sprintf(i18n.T("ui.using_config"), selectedConfig.Name))
+			} else {
+				// 输入新配置
+				tencentId, _ = ui.Input("腾讯云 SecretId", os.Getenv("TENCENTCLOUD_SECRET_ID"))
+				tencentSecret, _ = ui.InputSecret("腾讯云 SecretKey")
+				if tencentId == "" || tencentSecret == "" {
+					return
+				}
+				// 询问是否保存
+				if ui.ConfirmPrompt(i18n.T("ui.save_config_local")) {
+					name, _ := ui.Input(i18n.T("ui.config_name_new"), "")
+					if name != "" {
+						config.AddDNSConfig(name, "tencentcloud", tencentId, tencentSecret)
+						ui.Success(fmt.Sprintf(i18n.T("ui.config_saved"), name))
+					}
+				}
+			}
+		} else {
+			// 没有保存的配置，需要输入
+			tencentId, _ = ui.Input("腾讯云 SecretId", os.Getenv("TENCENTCLOUD_SECRET_ID"))
+			tencentSecret, _ = ui.InputSecret("腾讯云 SecretKey")
+			if tencentId == "" || tencentSecret == "" {
+				return
+			}
+			// 询问是否保存
+			if ui.ConfirmPrompt(i18n.T("ui.save_config_local")) {
+				name, _ := ui.Input(i18n.T("ui.config_name"), "")
+				if name != "" {
+					config.AddDNSConfig(name, "tencentcloud", tencentId, tencentSecret)
+					ui.Success(fmt.Sprintf(i18n.T("ui.config_saved"), name))
+				}
+			}
+		}
 	}
 
 	// 5. 确认
@@ -592,6 +681,8 @@ func runApplyInteractive() {
 	ui.Detail(fmt.Sprintf(i18n.T("ui.email_info"), email))
 	if dnsProvider == "aliyun" {
 		ui.Detail(i18n.T("ui.dns_aliyun_auto"))
+	} else if dnsProvider == "tencentcloud" {
+		ui.Detail("DNS: 腾讯云自动验证")
 	} else {
 		ui.Detail(i18n.T("ui.dns_manual"))
 	}
@@ -608,6 +699,8 @@ func runApplyInteractive() {
 	flagDNS = dnsProvider
 	flagAliKey = aliKey
 	flagAliSecret = aliSecret
+	flagTencentId = tencentId
+	flagTencentSecret = tencentSecret
 	flagDryRun = false
 
 	runApply(nil, nil)
